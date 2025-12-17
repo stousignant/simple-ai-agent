@@ -1,7 +1,7 @@
 [project]
 name = "simple-ai-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "Simple AI agent in Python"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
