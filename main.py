@@ -5,9 +5,8 @@ import sys
 from dotenv import load_dotenv
 from google import genai
 from constants import *
+from prompts import *
 from google.genai import types
-
-is_verbose = True
 
 def main():
     parser = argparse.ArgumentParser(description="AI Code Assistant")
@@ -21,25 +20,26 @@ def main():
         raise RuntimeError("GEMINI_API_KEY environment variable not set")
     
     client = genai.Client(api_key=api_key)
-    messages_in_conversation = [types.Content(role="user", parts=[types.Part(text=user_prompt)])]
+    messages_in_conversation = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
     if args.verbose:
         print(f"User prompt: {args.user_prompt}\n")
 
-    generate_response(user_prompt)
+    generate_response(client, messages_in_conversation, args.verbose)
 
-def generate_response(user_prompt):
+def generate_response(client, messages_in_conversation, verbose):
     response = client.models.generate_content(
         model=GEMINI_MODEL,
         contents=messages_in_conversation,
+        config=types.GenerateContentConfig(system_instruction=system_prompt),
     )
     if not response.usage_metadata:
         raise RuntimeError("Gemini API response appears to be malformed")
     
-    if is_verbose:
+    if verbose:
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
-    print(f"LLM response:)
-    print(response.text")
+    print("LLM Response:")
+    print(response.text)
 
 
 if __name__ == "__main__":
