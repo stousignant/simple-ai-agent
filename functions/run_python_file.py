@@ -17,7 +17,7 @@ def run_python_file(working_directory, file_path, args=None):
         command = ["python3", abs_file_path]
         if args:
             command.extend(args);
-        completed_process = subprocess.run(
+        result = subprocess.run(
             command,
             cwd=abs_working_dir,
             capture_output=True,
