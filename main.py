@@ -89,17 +89,26 @@ def generate_response(client, messages_in_conversation, verbose):
     for iteration in range(MAX_ITERATIONS):
         response = call_model(client, messages_in_conversation, verbose)
         
+        # Add all candidates to the conversation history
+        if response.candidates:
+            for candidate in response.candidates:
+                if candidate.content:
+                    messages_in_conversation.append(candidate.content)
+        
         if not response.function_calls:
-            print("LLM Response:")
+            print("Final response:")
             print(response.text)
             return
 
         add_assistant_response_to_conversation(response, messages_in_conversation)
         function_responses = execute_function_calls(response, verbose)
-        add_function_responses_to_conversation(function_responses, messages_in_conversation)
+        # This ensures the model sees function call results in future iterations
+        messages_in_conversation.append(types.Content(role="user", parts=function_responses))
     
-    # If we've exhausted iterations, print a warning
-    print("Warning: Maximum iterations reached. The agent may not have completed the task.")
+    # If we've exhausted iterations, print an error and exit
+    print("Error: Maximum iterations reached. The agent did not produce a final response.")
+    print(f"The model made function calls in all {MAX_ITERATIONS} iterations and never returned a final answer.")
+    sys.exit(1)
 
 
 if __name__ == "__main__":
