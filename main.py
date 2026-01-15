@@ -28,7 +28,8 @@ def main():
 
     generate_response(client, messages_in_conversation, args.verbose)
 
-def generate_response(client, messages_in_conversation, verbose):
+def call_model(client, messages_in_conversation, verbose):
+    """Calls the Gemini model and returns the response."""
     response = client.models.generate_content(
         model=GEMINI_MODEL,
         contents=messages_in_conversation,
@@ -42,13 +43,25 @@ def generate_response(client, messages_in_conversation, verbose):
     if verbose:
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
-
     
-    if not response.function_calls:
-        print("LLM Response:")
-        print(response.text)
-        return
+    return response
 
+def add_assistant_response_to_conversation(response, messages_in_conversation):
+    """Adds the assistant's response (text and function calls) to the conversation."""
+    assistant_parts = []
+    if response.text:
+        assistant_parts.append(types.Part(text=response.text))
+    for function_call in response.function_calls:
+        assistant_parts.append(types.Part(function_call=function_call))
+    
+    assistant_content = types.Content(
+        role="model",
+        parts=assistant_parts
+    )
+    messages_in_conversation.append(assistant_content)
+
+def execute_function_calls(response, verbose):
+    """Executes all function calls from the response and returns the function response parts."""
     function_responses = []
     for function_call in response.function_calls:
         result = call_function(function_call, verbose)
@@ -61,6 +74,32 @@ def generate_response(client, messages_in_conversation, verbose):
         if verbose:
             print(f"-> {result.parts[0].function_response.response}")
         function_responses.append(result.parts[0])
+    return function_responses
+
+def add_function_responses_to_conversation(function_responses, messages_in_conversation):
+    """Adds function responses to the conversation."""
+    tool_content = types.Content(
+        role="tool",
+        parts=function_responses
+    )
+    messages_in_conversation.append(tool_content)
+
+def generate_response(client, messages_in_conversation, verbose):
+    """Main loop that iterates until the agent produces a final response."""
+    for iteration in range(MAX_ITERATIONS):
+        response = call_model(client, messages_in_conversation, verbose)
+        
+        if not response.function_calls:
+            print("LLM Response:")
+            print(response.text)
+            return
+
+        add_assistant_response_to_conversation(response, messages_in_conversation)
+        function_responses = execute_function_calls(response, verbose)
+        add_function_responses_to_conversation(function_responses, messages_in_conversation)
+    
+    # If we've exhausted iterations, print a warning
+    print("Warning: Maximum iterations reached. The agent may not have completed the task.")
 
 
 if __name__ == "__main__":
